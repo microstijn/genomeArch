@@ -1,4 +1,4 @@
-# genArch.jl: A Toolkit for Genome Architecture and Taxonomy Analysis
+# genArch.jl: A Toolkit for genome architecture and environment
 genArch.jl is a high-performance Julia package for analyzing prokaryotic genomes. The workflow extracts taxonomic and assembly metadata from NCBI datasets, retrieves associated environmental data, and calculates detailed genome architecture metrics from GFF3 files.
 
 The tool is optimized for large-scale genomics, leveraging Julia's multi-threading capabilities to efficiently process thousands of genomes.
