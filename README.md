@@ -66,7 +66,7 @@ ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz
 Clone the repository:
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/microstijn/genomeArch/
 cd genArch
 ```
 
