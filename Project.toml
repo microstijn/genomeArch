@@ -1,0 +1,18 @@
+name = "genArch"
+uuid = "1f907b8e-3cfe-4970-baa9-0882f36f359c"
+authors = ["Stijn Peeters <58211004+microstijn@users.noreply.github.com>"]
+version = "0.1.0"
+
+[deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+GFF3 = "af1dc308-cb6b-11e8-32f0-31192efa90f6"
+GenomicFeatures = "899a7d2d-5c61-547b-bef9-6698a8d05446"
+Glob = "c27321d9-0574-5035-807b-f59d2c89b15c"
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+IntervalTrees = "524e6230-43b7-53ae-be76-1e9e4d08d11b"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+Taxonomy = "10bb16a4-4bfc-432e-9419-4ca69c1a753c"
