@@ -2,11 +2,10 @@
 
 # --- Setup ---
 using Test
-using Pkg
+import Pkg  # Use 'import' for the standard Pkg library
 
 # Activate the project environment (the parent directory of this test folder)
-project_dir = joinpath(@__DIR__, "..")
-Pkg.activate(project_dir)
+Pkg.activate("..")
 
 # Import the code to be tested from your main module
 using genArch
@@ -125,3 +124,4 @@ no_overlaps_contig	TEST	gene	4000	4100	.	-	.	ID=n_no_overlap2
         rm(temp_gff_dir, recursive=true, force=true)
     end
 end
+
