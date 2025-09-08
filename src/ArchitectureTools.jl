@@ -8,12 +8,12 @@ export calculate_architecture
 using CSV
 using DataFrames
 using GFF3
-using Glob
+using Glob # efficient data localisation
 using GenomicFeatures
-using ProgressMeter
-using Base.Threads
-using IntervalTrees
-using Statistics # Added for mean, median, std
+using ProgressMeter 
+using Base.Threads # multithread support
+using IntervalTrees # need for efficient overlap detection
+using Statistics 
 
 #-----------------------------------------------------------------
 # Core Helper Functions
@@ -113,7 +113,7 @@ function analyze_operons(genes::Vector{GFF3.Record}; max_operon_gap=200)
     
     sorted_genes = sort(genes, by=GFF3.seqstart)
 
-    for i in 1:length(sorted_genes)
+    for i in eachindex(sorted_genes)
         if isempty(current_operon)
             push!(current_operon, sorted_genes[i])
         else
@@ -249,7 +249,7 @@ function calculate_architecture(gff_dir::String, output_file::String)
                 if !isempty(p_genes) && !isempty(n_genes)
                     p_intervals = GenomicFeatures.Interval.(Ref(contig_id), p_starts, p_ends, Ref(STRAND_POS), 1:p_gene_nr)
                     n_intervals = GenomicFeatures.Interval.(Ref(contig_id), n_starts, n_ends, Ref(STRAND_NEG), 1:n_gene_nr)
-                    # CORRECTED: Changed sort=true to the positional argument 'true'
+                    # Changed sort=true to the positional argument 'true'
                     C_overlap_nr, D_overlap_nr, C_length_sum, D_length_sum = bidirectional_overlaps(
                         IntervalCollection(n_intervals, true), 
                         IntervalCollection(p_intervals, true)
