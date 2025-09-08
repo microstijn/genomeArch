@@ -18,7 +18,7 @@ using genArch
 # Define I/O
 data_dir = raw"D:\ncbi_downloads\bactera_reference\ncbi_dataset\data"
 taxdump_dir = "D:/ncbi_downloads/taxdump/"
-output_dir = joinpath(project_dir, "pipeline_output/")
+output_dir = raw"D:\pipeline_output"
 
 # Create the output directory if it doesn't exist
 mkpath(output_dir)
@@ -36,10 +36,48 @@ gff_dir = data_dir
 arch_output_file = joinpath(output_dir, "genome_architecture_metrics.csv")
 calculate_architecture(gff_dir, arch_output_file)
 
+consolidate_to_genomes(
+    arch_output_file,
+    joinpath(output_dir, "per_genome_architecture_metrics.csv")
+)
+
+calculate_density_score(
+    joinpath(output_dir, "per_genome_architecture_metrics.csv"),
+    joinpath(output_dir, "density_scores.csv")
+)
+
+perform_pic_analysis(
+    joinpath(output_dir, "density_scores.csv"),
+    raw"D:\pipeline_output\assembly_data_report_TaxId.csv",
+    raw"D:\pipeline_output\assembly_genome_environments.tsv"
+)
+
 
 
 using CSV
 using DataFrames
-f = CSV.File(raw"C:\Users\peete074\OneDrive - Wageningen University & Research\programming\genArch\pipeline_output\genome_architecture_metrics.csv") |> DataFrame
+f = CSV.File(joinpath(output_dir, "per_genome_architecture_metrics.csv")) |> DataFrame
 
-print(names(f))
+
+prune_gtdb_tree(
+    raw"D:\GTDB\ar53_r220.tree",
+    joinpath(output_dir, "per_genome_architecture_metrics.csv"),
+    
+)
+
+inspect_tree_file(
+    raw"D:\GTDB\ar53_r220.tree"
+)
+
+tree = open(parsenewick, Phylo.path(raw"D:\GTDB\ar53_r220.tree"))
+
+using PhyloNetworks
+net = readnewick(readlines(raw"D:\GTDB\ar53_r220.tree"));
+readstring(raw"D:\GTDB\ar53_r220.tree")
+
+using NewickTree
+tree_string = read(raw"D:\GTDB\ar53_r220.tree", String)
+
+readTopology(tree_string)
+
+run_all_tests()

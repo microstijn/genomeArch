@@ -1,6 +1,7 @@
 module PhyloTools
 
 using Phylo
+using PhyloNetworks # Added for robust Newick parsing
 using DataFrames
 using CSV
 
@@ -9,7 +10,8 @@ export prune_gtdb_tree, inspect_tree_file
 """
     inspect_tree_file(gtdb_tree_file::String)
 
-Reads, cleans, and parses a Newick tree file, then prints a summary of its structure.
+Reads and parses a Newick tree file using the robust PhyloNetworks parser, 
+then prints a summary of its structure.
 """
 function inspect_tree_file(gtdb_tree_file::String)
     println("Inspecting tree file: ", gtdb_tree_file)
@@ -19,33 +21,24 @@ function inspect_tree_file(gtdb_tree_file::String)
         return
     end
     
-    # --- 1. Read and Clean the Tree String ---
-    println("Reading and cleaning tree string...")
-    tree_string = read(gtdb_tree_file, String)
-    # This regex replicates the functionality of the GTDB-Tk `tree_to_itol.py` script,
-    # removing the internal node labels (bootstraps) that cause parsing errors.
-    cleaned_tree_string = replace(tree_string, r"\)([^,:]*):" => "):")
-    
-    # --- 2. Parse the Cleaned String ---
-    println("Parsing the cleaned tree...")
-    tree = parsenewick(cleaned_tree_string)
+    # --- 1. Parse the Tree using PhyloNetworks.jl ---
+    println("Parsing the tree with PhyloNetworks.jl...")
+    # readTopology is more robust and handles complex Newick formats like GTDB's.
+    tree = readTopology(gtdb_tree_file)
     println("Tree parsed successfully.")
     
-    # --- 3. Print a Summary of the Tree ---
-    leaf_names = getleafnames(tree)
-    num_leaves = length(leaf_names)
-    num_nodes = nnodes(tree)
-
-    println("\n--- Tree Summary ---")
-    println("Total number of nodes: ", num_nodes)
-    println("Number of tips (leaves): ", num_leaves)
-    println("Number of internal nodes: ", num_nodes - num_leaves)
+    # --- 2. Print a Summary of the Tree ---
+    # Note: PhyloNetworks objects have a different API than Phylo.jl objects
+    println("\n--- Tree Summary (from PhyloNetworks) ---")
+    println("Number of tips (leaves): ", length(tree.leaf))
+    println("Number of internal nodes: ", length(tree.node) - length(tree.leaf))
+    println("Total nodes: ", length(tree.node))
     
     println("\nExample tip names (first 5):")
-    for i in 1:min(5, num_leaves)
-        println("  - ", leaf_names[i])
+    for i in 1:min(5, length(tree.leaf))
+        println("  - ", tree.leaf[i].name)
     end
-    println("--------------------")
+    println("----------------------------------------")
 
     return tree
 end
@@ -67,8 +60,8 @@ function prune_gtdb_tree(gtdb_tree_file::String, accessions_file::String, output
     union!(accessions_to_keep, Set("GB_" .* df.genome_name))
     println("Found $(length(df.genome_name)) unique genome accessions to keep.")
 
-    # --- 2. Load and Clean the full GTDB tree string ---
-    println("Loading and cleaning the full GTDB tree from: ", gtdb_tree_file)
+    # --- 2. Load the full GTDB tree using the robust PhyloNetworks parser ---
+    println("Loading the full GTDB tree from: ", gtdb_tree_file)
     if !isfile(gtdb_tree_file)
         @error """
         GTDB tree file not found at '$gtdb_tree_file'.
@@ -77,31 +70,30 @@ function prune_gtdb_tree(gtdb_tree_file::String, accessions_file::String, output
         return
     end
     
-    tree_string = read(gtdb_tree_file, String)
-    cleaned_tree_string = replace(tree_string, r"\)([^,:]*):" => "):")
-    
-    full_tree = parsenewick(cleaned_tree_string)
+    full_tree = readTopology(gtdb_tree_file)
+    println("Tree parsed successfully with PhyloNetworks.")
 
     # --- 3. Prune the tree ---
     println("Pruning the tree to keep only the specified accessions...")
-    tips_in_tree = Set(getleafnames(full_tree))
-    final_tips = intersect(accessions_to_keep, tips_in_tree)
+    # The function `deleteleaf!` is the standard way to prune in PhyloNetworks.
+    tips_to_delete = setdiff(Set(n.name for n in full_tree.leaf), accessions_to_keep)
     
-    if isempty(final_tips)
-        @error "None of the provided accessions were found in the GTDB tree. Check accession format (e.g., 'RS_GCF_...' or 'GB_GCA_...')."
+    if length(tips_to_delete) == length(full_tree.leaf)
+        @error "None of the provided accessions were found in the GTDB tree. Check accession format (e.g., 'RS_GCF_...')."
         return
     end
     
-    keeponly!(full_tree, final_tips)
+    for tip in tips_to_delete
+        deleteleaf!(full_tree, tip)
+    end
 
     # --- 4. Write the pruned tree to a new file ---
     println("Writing pruned tree to: ", output_tree_file)
     mkpath(dirname(output_tree_file))
-    open(output_tree_file, "w") do io
-        print(io, full_tree)
-    end
+    # `writeTopology` is the function for writing PhyloNetworks trees.
+    writeTopology(full_tree, output_tree_file)
 
-    println("\nTree pruning complete. Pruned tree contains $(length(final_tips)) tips.")
+    println("\nTree pruning complete. Pruned tree contains $(length(full_tree.leaf)) tips.")
 end
 
 end # end module

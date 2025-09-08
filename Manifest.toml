@@ -2,7 +2,7 @@
 
 julia_version = "1.10.3"
 manifest_format = "2.0"
-project_hash = "5b4517fdb506b0437a3f08bef36345d3c99bf636"
+project_hash = "3510874e0ab0814c428494c2c2e4abf78e3eda39"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "2d9c9a55f9c93e8887ad391fbae72f8ef55e1177"
@@ -56,10 +56,27 @@ git-tree-sha1 = "017562e86afcd2a6a2a9220606a40b54604887c9"
 uuid = "47718e42-2ac5-11e9-14af-e5595289c2ea"
 version = "0.1.5"
 
+[[deps.BioSequences]]
+deps = ["BioSymbols", "PrecompileTools", "Random", "Twiddle"]
+git-tree-sha1 = "3997810d996142e62aa426deed5bd858339e2332"
+uuid = "7e6ae17a-c86d-528c-b3b9-7f778a29fe59"
+version = "3.5.0"
+
+[[deps.BioSymbols]]
+deps = ["PrecompileTools"]
+git-tree-sha1 = "41e42d326ff01d12167f3f8a218b318bf7429d0f"
+uuid = "3c28c6f8-a34d-59c4-9654-267d177fcfa9"
+version = "5.2.0"
+
 [[deps.BitFlags]]
 git-tree-sha1 = "0691e34b3bb8be9307330f88d1a3c3f25466c24d"
 uuid = "d1d4a3ce-64b1-5f1a-9ba4-7e7e69966f35"
 version = "0.1.9"
+
+[[deps.CEnum]]
+git-tree-sha1 = "389ad5c84de1ae7cf0e28e381131c98ea87d54fc"
+uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
+version = "0.5.0"
 
 [[deps.CSV]]
 deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "PrecompileTools", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings", "WorkerUtilities"]
@@ -78,6 +95,11 @@ deps = ["TranscodingStreams", "Zlib_jll"]
 git-tree-sha1 = "962834c22b66e32aa10f7611c08c8ca4e20749a9"
 uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
 version = "0.7.8"
+
+[[deps.Combinatorics]]
+git-tree-sha1 = "8010b6bb3388abe68d95743dcbea77650bb2eddf"
+uuid = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+version = "1.0.3"
 
 [[deps.Compat]]
 deps = ["TOML", "UUIDs"]
@@ -104,6 +126,17 @@ deps = ["Serialization", "Sockets"]
 git-tree-sha1 = "d9d26935a0bcffc87d2613ce14c527c99fc543fd"
 uuid = "f0e56b4a-5159-44fe-b623-3e5288b988bb"
 version = "2.5.0"
+
+[[deps.ConstructionBase]]
+git-tree-sha1 = "b4b092499347b18a015186eae3042f72267106cb"
+uuid = "187b0558-2788-49d3-abe0-74a17ed4e7c9"
+version = "1.6.0"
+weakdeps = ["IntervalSets", "LinearAlgebra", "StaticArrays"]
+
+    [deps.ConstructionBase.extensions]
+    ConstructionBaseIntervalSetsExt = "IntervalSets"
+    ConstructionBaseLinearAlgebraExt = "LinearAlgebra"
+    ConstructionBaseStaticArraysExt = "StaticArrays"
 
 [[deps.Crayons]]
 git-tree-sha1 = "249fe38abf76d48563e2f4556bebd215aa317e15"
@@ -192,12 +225,10 @@ deps = ["Automa", "BioGenerics", "PrecompileTools", "ScanByte", "StringViews", "
 git-tree-sha1 = "5c4b85ab007cb55d38fc8249ddfab6bf2f48cf06"
 uuid = "c2308a5c-f048-11e8-3e8a-31650f418d12"
 version = "2.1.2"
+weakdeps = ["BioSequences"]
 
     [deps.FASTX.extensions]
     BioSequencesExt = "BioSequences"
-
-    [deps.FASTX.weakdeps]
-    BioSequences = "7e6ae17a-c86d-528c-b3b9-7f778a29fe59"
 
 [[deps.FilePathsBase]]
 deps = ["Compat", "Dates"]
@@ -224,6 +255,12 @@ weakdeps = ["PDMats", "SparseArrays", "Statistics"]
     FillArraysPDMatsExt = "PDMats"
     FillArraysSparseArraysExt = "SparseArrays"
     FillArraysStatisticsExt = "Statistics"
+
+[[deps.Functors]]
+deps = ["Compat", "ConstructionBase", "LinearAlgebra", "Random"]
+git-tree-sha1 = "60a0339f28a233601cb74468032b5c302d5067de"
+uuid = "d9f16b24-f501-4c13-a1f2-28368ffc5196"
+version = "0.5.2"
 
 [[deps.Future]]
 deps = ["Random"]
@@ -454,21 +491,27 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 version = "2023.1.10"
 
+[[deps.NLopt]]
+deps = ["CEnum", "NLopt_jll"]
+git-tree-sha1 = "624785b15005a0e0f4e462b27ee745dbe5941863"
+uuid = "76087f3c-5699-56af-9a33-bf431cd00edd"
+version = "1.2.1"
+
+    [deps.NLopt.extensions]
+    NLoptMathOptInterfaceExt = ["MathOptInterface"]
+
+    [deps.NLopt.weakdeps]
+    MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+
+[[deps.NLopt_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "b0154a615d5b2b6cf7a2501123b793577d0b9950"
+uuid = "079eb43e-fd8e-5478-9966-2cf3e3edb778"
+version = "2.10.0+0"
+
 [[deps.NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
 version = "1.2.0"
-
-[[deps.NewickTree]]
-deps = ["AbstractTrees", "RecipesBase", "Test"]
-git-tree-sha1 = "b3528d90487378e38728d5293ca38095bdf0b368"
-uuid = "b0a14db8-6308-4ebc-8917-f72cd81f5094"
-version = "0.4.0"
-
-    [deps.NewickTree.extensions]
-    ClusteringExt = ["Clustering"]
-
-    [deps.NewickTree.weakdeps]
-    Clustering = "aaaa29a8-35af-508c-8bc3-b662a17a0fe5"
 
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
@@ -534,6 +577,12 @@ version = "0.5.4"
     Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
     RCall = "6f49c342-dc21-5d91-9882-a32aef131414"
     Requires = "ae029012-a4dd-5104-9daa-d747884805df"
+
+[[deps.PhyloNetworks]]
+deps = ["BioSequences", "BioSymbols", "CSV", "Combinatorics", "DataFrames", "DataStructures", "Dates", "Distributed", "Distributions", "FASTX", "Functors", "LinearAlgebra", "NLopt", "Printf", "Random", "StaticArrays", "Statistics", "StatsBase"]
+git-tree-sha1 = "14fb11158a452bc6afb3d12213d409e5365166cf"
+uuid = "33ad39ac-ed31-50eb-9b15-43d0656eaa72"
+version = "1.2.0"
 
 [[deps.PooledArrays]]
 deps = ["DataAPI", "Future"]
@@ -840,6 +889,11 @@ deps = ["Random", "Test"]
 git-tree-sha1 = "9a6ae7ed916312b41236fcef7e0af564ef934769"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.9.13"
+
+[[deps.Twiddle]]
+git-tree-sha1 = "29509c4862bfb5da9e76eb6937125ab93986270a"
+uuid = "7200193e-83a8-5a55-b20d-5d36d44a0795"
+version = "1.1.2"
 
 [[deps.URIParser]]
 deps = ["Unicode"]
