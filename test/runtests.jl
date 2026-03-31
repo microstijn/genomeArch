@@ -2,10 +2,10 @@
 
 # --- Setup ---
 using Test
-import Pkg  # Use 'import' for the standard Pkg library
+# using Pkg  # Use 'import' for the standard Pkg library
 
 # Activate the project environment (the parent directory of this test folder)
-Pkg.activate("..")
+# Pkg.activate("..")
 
 # Import the code to be tested from your main module
 using genArch
