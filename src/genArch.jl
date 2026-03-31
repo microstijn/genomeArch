@@ -7,7 +7,7 @@ include("ArchitectureTools.jl")
 include("TestFunctions.jl")
 include("AnalysisTools.jl")
 include("PhyloTools.jl")
-
+include("PipelineTools.jl")
 
 # Make the main functions from each module available to the user
 using .TaxonomyTools
@@ -30,5 +30,11 @@ export perform_pic_analysis
 using .PhyloTools
 export prune_gtdb_tree
 export inspect_tree_file
+
+using .PipelineTools
+export merge_and_impute_ogt
+export merge_and_impute_lifestyle
+export optimize_models
+export mechanistic_engine
 
 end # module
