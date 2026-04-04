@@ -90,7 +90,7 @@ run_all_tests()
 tempura = raw"C:\Users\peete074\OneDrive - Wageningen University & Research\programming\genomeArch\tempura\200617_TEMPURA.csv"
 using CSV
 using DataFrames
-df_tempura = CSV.File(tempura, quoted = false) |> DataFrame
+#df_tempura = CSV.File(tempura, quoted = false) |> DataFrame
 
 df_tempura = CSV.File(tempura, quoted =false, silencewarnings=true) |> DataFrame
 

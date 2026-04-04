@@ -128,20 +128,39 @@ Aggregates a per-contig genome architecture file to a per-genome summary.
 function consolidate_to_genomes(input_file::String, output_file::String)
     df = CSV.File(input_file) |> DataFrame
 
-    # Define columns for simple summation and for weighted averaging
+    # Define columns for simple summation
     sum_cols = [
         :contig_size, :p_gene_nr, :n_gene_nr, :p_gene_length_sum, :n_gene_length_sum,
         :p_U_overlap_nr, :p_U_overlap_length_sum, :n_U_overlap_nr, :n_U_overlap_length_sum,
         :C_overlap_nr, :C_length_sum, :D_overlap_nr, :D_length_sum,
         :p_gap_length_sum, :n_gap_length_sum, :operon_nr,
-        :divergent_pairs_nr, :convergent_pairs_nr
+        :divergent_pairs_nr, :convergent_pairs_nr,
+        
+        # Advanced Overlap and Frame metrics
+        :U_coupled_nr, :U_deep_nr, :C_deep_nr, :D_deep_nr,
+        :U_in_frame_nr, :U_out_of_frame_nr, :abutting_genes_nr, :nested_genes_nr,
+        
+        # New Structural Entanglement & Collision metrics
+        :total_overlap_chains_nr, :internal_overlaps_nr, :boundary_collisions_nr
+    ]
+    
+    # Columns to find the absolute maximum across contigs
+    max_cols = [
+        :U_max_len, :C_max_len, :D_max_len,
+        
+        # New Extreme Topology limiters
+        :max_overlap_chain_size, :max_overlaps_per_gene
     ]
     
     # Columns to be averaged, weighted by contig_size
     weighted_avg_cols = [
         :p_gap_mean, :p_gap_median, :p_gap_std,
         :n_gap_mean, :n_gap_median, :n_gap_std,
-        :gene_density_gradient_std
+        :gene_density_gradient_std,
+        :absolute_gap_mean, :absolute_gap_median, :absolute_gap_std,
+        
+        # New Accordion Effect metrics
+        :intra_operon_gap_mean, :inter_operon_gap_mean
     ]
 
     gdf = groupby(df, :genome_name)
@@ -149,18 +168,17 @@ function consolidate_to_genomes(input_file::String, output_file::String)
     # Perform aggregation with explicit column naming to avoid conflicts
     consolidated_df = combine(gdf) do sub_df
         # --- Create a NamedTuple for all the simple sums ---
-        # CORRECTED: Added parentheses around the entire generator expression
         sums = (; ((Symbol(col) => sum(sub_df[!, col])) for col in sum_cols)...)
+        
+        # --- Create a NamedTuple for maximums ---
+        maxes = (; ((Symbol(col) => maximum(sub_df[!, col])) for col in max_cols)...)
         
         # --- Calculate weighted averages ---
         total_size = sums.contig_size
         weighted_avgs = NamedTuple()
         if total_size > 0
-            # CORRECTED: Added parentheses around the entire generator expression
             weighted_avgs = (; ((Symbol(col) => sum(sub_df[!, col] .* sub_df.contig_size) / total_size) for col in weighted_avg_cols)...)
         else
-            # Default to 0 if total size is 0 to avoid division by zero
-            # CORRECTED: Added parentheses around the entire generator expression
             weighted_avgs = (; ((Symbol(col) => 0.0) for col in weighted_avg_cols)...)
         end
         
@@ -169,15 +187,32 @@ function consolidate_to_genomes(input_file::String, output_file::String)
         
         recalculated_ratios = (
             strand_asymmetry = total_genes > 0 ? sums.p_gene_nr / total_genes : 0.5,
+            
             # Operonicity is (total genes in operons) / (total genes)
             operonicity_score = total_genes > 0 ? (sum(sub_df.mean_operon_size .* sub_df.operon_nr) / total_genes) * 100 : 0.0,
+            
             # Mean operon size is a weighted average of the mean sizes from each contig
-            mean_operon_size = sums.operon_nr > 0 ? sum(sub_df.mean_operon_size .* sub_df.operon_nr) / sums.operon_nr : 0.0
+            mean_operon_size = sums.operon_nr > 0 ? sum(sub_df.mean_operon_size .* sub_df.operon_nr) / sums.operon_nr : 0.0,
+            
+            # True global coding density across the whole genome
+            coding_density_pct = total_size > 0 ? sum(sub_df.coding_density_pct .* sub_df.contig_size) / total_size : 0.0,
+            
+            # Global mean gene length
+            mean_gene_length = total_genes > 0 ? (sums.p_gene_length_sum + sums.n_gene_length_sum) / total_genes : 0.0,
+            
+            # Reconstruct strand switch rate weighted by gene count per contig
+            strand_switch_rate = total_genes > 0 ? sum(sub_df.strand_switch_rate .* (sub_df.p_gene_nr .+ sub_df.n_gene_nr)) / total_genes : 0.0,
+            
+            # Approximate standard deviation of gene length (weighted by gene count)
+            std_gene_length = total_genes > 0 ? sum(sub_df.std_gene_length .* (sub_df.p_gene_nr .+ sub_df.n_gene_nr)) / total_genes : 0.0,
+            
+            # Weighted average for overlap chain sizes
+            mean_overlap_chain_size = sums.total_overlap_chains_nr > 0 ? sum(sub_df.mean_overlap_chain_size .* sub_df.total_overlap_chains_nr) / sums.total_overlap_chains_nr : 0.0
         )
         
         # Merge all results into a single NamedTuple for the new row
         other_sums = Base.structdiff(sums, (contig_size = nothing,))
-        return merge((genome_size=sums.contig_size,), other_sums, weighted_avgs, recalculated_ratios)
+        return merge((genome_size=sums.contig_size,), other_sums, maxes, weighted_avgs, recalculated_ratios)
     end
     
     CSV.write(output_file, consolidated_df)

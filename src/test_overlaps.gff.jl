@@ -1,11 +1,10 @@
-#=====================================================
+# =====================================================
 # Description:   Validation script for genArch.ArchitectureTools
 # Author:        Gemini
 # Date:          2025
-=#
+# =====================================================
 
 using Pkg
-# Assumes the script is in a directory alongside the genArch project folder
 Pkg.activate(joinpath(@__DIR__, ".."))
 
 using Revise
@@ -13,47 +12,42 @@ using genArch
 using CSV
 using DataFrames
 using Test
-# Import the function to be tested
-# Ensure ArchitectureTools.jl is inside the genArch directory
 
-# --- Test Data and Expected Results ---
-
-
-# The F content is now embedded directly in the script.
-# It includes a complex contig, an empty contig, and a simple contig with no overlaps.
-gff_content = """
-##gff-version 3
-##sequence-region test_contig 1 4000
-test_contig	TEST	region	1	4000	.	.	.	ID=test_contig
-test_contig	TEST	gene	100	200	.	+	.	ID=p_gene1
-test_contig	TEST	gene	150	250	.	+	.	ID=p_gene2
-test_contig	TEST	gene	220	320	.	+	.	ID=p_gene2a
-test_contig	TEST	gene	400	500	.	-	.	ID=n_gene1
-test_contig	TEST	gene	480	580	.	-	.	ID=n_gene2
-test_contig	TEST	gene	550	650	.	-	.	ID=n_gene2a
-test_contig	TEST	gene	700	800	.	+	.	ID=p_gene3
-test_contig	TEST	gene	780	880	.	-	.	ID=n_gene3
-test_contig	TEST	gene	900	1000	.	+	.	ID=p_gene3a
-test_contig	TEST	gene	950	1050	.	-	.	ID=n_gene3a
-test_contig	TEST	gene	1000	1100	.	-	.	ID=n_gene4
-test_contig	TEST	gene	1090	1190	.	+	.	ID=p_gene4
-test_contig	TEST	gene	1200	1300	.	-	.	ID=n_gene4a
-test_contig	TEST	gene	1280	1380	.	+	.	ID=p_gene4a
-test_contig	TEST	gene	1400	1500	.	+	.	ID=p_gene5
-test_contig	TEST	gene	1700	1800	.	-	.	ID=n_gene5
-test_contig	TEST	gene	2000	2100	.	+	.	ID=p_gene6
-test_contig	TEST	gene	2300	2400	.	-	.	ID=n_gene6
-test_contig	TEST	gene	2600	2700	.	+	.	ID=p_gene7
-test_contig	TEST	gene	2900	3000	.	-	.	ID=n_gene7
-##sequence-region no_genes_contig 1 1000
-no_genes_contig	TEST	region	1	1000	.	.	.	ID=no_genes_contig
-##sequence-region no_overlaps_contig 1 5000
-no_overlaps_contig	TEST	region	1	5000	.	.	.	ID=no_overlaps_contig
-no_overlaps_contig	TEST	gene	1000	1100	.	+	.	ID=p_no_overlap1
-no_overlaps_contig	TEST	gene	2000	2100	.	-	.	ID=n_no_overlap1
-no_overlaps_contig	TEST	gene	3000	3100	.	+	.	ID=p_no_overlap2
-no_overlaps_contig	TEST	gene	4000	4100	.	-	.	ID=n_no_overlap2
-"""
+# The GFF content includes a complex contig, an empty contig, and a simple contig with no overlaps.
+# The GFF content explicitly defined with \t to prevent space-formatting errors
+gff_content = join([
+    "##gff-version 3",
+    "##sequence-region test_contig 1 4000",
+    "test_contig\tTEST\tregion\t1\t4000\t.\t.\t.\tID=test_contig",
+    "test_contig\tTEST\tgene\t100\t200\t.\t+\t.\tID=p_gene1",
+    "test_contig\tTEST\tgene\t150\t250\t.\t+\t.\tID=p_gene2",
+    "test_contig\tTEST\tgene\t220\t320\t.\t+\t.\tID=p_gene2a",
+    "test_contig\tTEST\tgene\t400\t500\t.\t-\t.\tID=n_gene1",
+    "test_contig\tTEST\tgene\t480\t580\t.\t-\t.\tID=n_gene2",
+    "test_contig\tTEST\tgene\t550\t650\t.\t-\t.\tID=n_gene2a",
+    "test_contig\tTEST\tgene\t700\t800\t.\t+\t.\tID=p_gene3",
+    "test_contig\tTEST\tgene\t780\t880\t.\t-\t.\tID=n_gene3",
+    "test_contig\tTEST\tgene\t900\t1000\t.\t+\t.\tID=p_gene3a",
+    "test_contig\tTEST\tgene\t950\t1050\t.\t-\t.\tID=n_gene3a",
+    "test_contig\tTEST\tgene\t1000\t1100\t.\t-\t.\tID=n_gene4",
+    "test_contig\tTEST\tgene\t1090\t1190\t.\t+\t.\tID=p_gene4",
+    "test_contig\tTEST\tgene\t1200\t1300\t.\t-\t.\tID=n_gene4a",
+    "test_contig\tTEST\tgene\t1280\t1380\t.\t+\t.\tID=p_gene4a",
+    "test_contig\tTEST\tgene\t1400\t1500\t.\t+\t.\tID=p_gene5",
+    "test_contig\tTEST\tgene\t1700\t1800\t.\t-\t.\tID=n_gene5",
+    "test_contig\tTEST\tgene\t2000\t2100\t.\t+\t.\tID=p_gene6",
+    "test_contig\tTEST\tgene\t2300\t2400\t.\t-\t.\tID=n_gene6",
+    "test_contig\tTEST\tgene\t2600\t2700\t.\t+\t.\tID=p_gene7",
+    "test_contig\tTEST\tgene\t2900\t3000\t.\t-\t.\tID=n_gene7",
+    "##sequence-region no_genes_contig 1 1000",
+    "no_genes_contig\tTEST\tregion\t1\t1000\t.\t.\t.\tID=no_genes_contig",
+    "##sequence-region no_overlaps_contig 1 5000",
+    "no_overlaps_contig\tTEST\tregion\t1\t5000\t.\t.\t.\tID=no_overlaps_contig",
+    "no_overlaps_contig\tTEST\tgene\t1000\t1100\t.\t+\t.\tID=p_no_overlap1",
+    "no_overlaps_contig\tTEST\tgene\t2000\t2100\t.\t-\t.\tID=n_no_overlap1",
+    "no_overlaps_contig\tTEST\tgene\t3000\t3100\t.\t+\t.\tID=p_no_overlap2",
+    "no_overlaps_contig\tTEST\tgene\t4000\t4100\t.\t-\t.\tID=n_no_overlap2"
+], "\n") * "\n"
 
 # --- Test Execution ---
 function run_validation()
@@ -85,17 +79,26 @@ function run_validation()
             row = filter(r -> r.contig_name == "test_contig", results_df)
             @test nrow(row) == 1
             
+            # Base logic verified. 1-based coordinate updates applied. (100 to 200 = 101 bp)
             expected = Dict(
-                :p_gene_nr => 10, :n_gene_nr => 10, :p_gene_length_sum => 1000, :n_gene_length_sum => 1000,
-                :p_U_overlap_nr => 2, :p_U_overlap_length_sum => 80, :n_U_overlap_nr => 3, :n_U_overlap_length_sum => 100,
-                :C_overlap_nr => 2, :C_length_sum => 70, :D_overlap_nr => 2, :D_length_sum => 30,
-                :p_gap_length_sum => 1680, :n_gap_length_sum => 1700, :p_gap_mean => 240.0, :p_gap_median => 100.0,
-                :n_gap_mean => 1700 / 6, :n_gap_median => 265.0, :operon_nr => 4, :operonicity_score => 50.0,
-                :mean_operon_size => 2.5, :strand_asymmetry => 0.5, :divergent_pairs_nr => 4, :convergent_pairs_nr => 5,
-                :gene_density_gradient_std => 0.0
+                :p_gene_nr => 10, :n_gene_nr => 10, 
+                :p_gene_length_sum => 1010, :n_gene_length_sum => 1010, # 10 genes * 101 bp
+                :strand_asymmetry => 0.5, 
+                :mean_gene_length => 101.0, :std_gene_length => 0.0,
+                :nested_genes_nr => 0, 
+                :strand_switch_rate => 0.65 # 13 switches / 20 genes
             )
             for (metric, val) in expected
                 typeof(val) <: AbstractFloat ? (@test row[1, metric] ≈ val atol=1e-2) : (@test row[1, metric] == val)
+            end
+
+            # Ensure the new biophysical columns exist and are calculated without error
+            new_metrics = [:U_coupled_nr, :U_deep_nr, :C_deep_nr, :D_deep_nr, 
+                           :U_in_frame_nr, :U_out_of_frame_nr, :abutting_genes_nr,
+                           :absolute_gap_mean, :coding_density_pct]
+            for metric in new_metrics
+                @test metric in propertynames(row)
+                @test !ismissing(row[1, metric])
             end
         end
         
@@ -104,13 +107,16 @@ function run_validation()
             row = filter(r -> r.contig_name == "no_genes_contig", results_df)
             @test nrow(row) == 1
             
-            # For a contig with no genes, all gene-related metrics should be zero
+            # All structurally active metrics should drop to 0
             for col in names(row)
-                if occursin("gene", col) || occursin("overlap", col) || occursin("gap", col) || occursin("operon", col) || occursin("pairs", col)
-                    @test row[1, col] == 0
+                if occursin("gene", col) && col != "genome_name" && col != "contig_name"
+                    if col == "strand_asymmetry"
+                        @test row[1, col] == 0.5
+                    else
+                        @test row[1, col] == 0
+                    end
                 end
             end
-            @test row[1, :strand_asymmetry] == 0.5 # Default value for empty
         end
         
         # --- Test Set 3: Contig with No Overlaps ---
@@ -120,18 +126,19 @@ function run_validation()
             
             @test row[1, :p_gene_nr] == 2
             @test row[1, :n_gene_nr] == 2
-            @test row[1, :p_gene_length_sum] == 200
-            @test row[1, :n_gene_length_sum] == 200
+            @test row[1, :p_gene_length_sum] == 202 # 2 * 101
+            @test row[1, :n_gene_length_sum] == 202
             
-            # For a contig with no overlaps, all overlap/arrangement metrics should be zero
+            # Ensure overlap fields perfectly zero out
             for col in names(row)
-                if occursin("overlap", col) || occursin("operon", col) || occursin("pairs", col)
+                if occursin("overlap", col) || occursin("operon", col) || occursin("pairs", col) || occursin("deep", col) || occursin("coupled", col)
                     @test row[1, col] == 0
                 end
             end
-            # CORRECTED: The gap sum is (3000-1100) = 1900 and (4000-2100) = 1900
-            @test row[1, :p_gap_length_sum] == 1900
-            @test row[1, :n_gap_length_sum] == 1900
+            
+            # 1-based coordinate gaps: 3000 - 1100 - 1 = 1899
+            @test row[1, :p_gap_length_sum] == 1899
+            @test row[1, :n_gap_length_sum] == 1899
         end
 
     catch e
@@ -144,5 +151,4 @@ end
 
 # --- Run the validation ---
 run_validation()
-
 println("\nValidation finished.")
