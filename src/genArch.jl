@@ -36,5 +36,6 @@ export merge_and_impute_ogt
 export merge_and_impute_lifestyle
 export optimize_models
 export mechanistic_engine
+export mechanistic_engine_all
 
 end # module
