@@ -34,6 +34,7 @@ export inspect_tree_file
 using .PipelineTools
 export merge_and_impute_ogt
 export merge_and_impute_lifestyle
+export impute_by_taxonomy
 export optimize_models
 export mechanistic_engine
 export mechanistic_engine_all

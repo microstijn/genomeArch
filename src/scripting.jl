@@ -34,7 +34,14 @@ fetch_environments(tax_output_file, output_dir)
  #Calculate architecture
 gff_dir = data_dir
 arch_output_file = joinpath(output_dir, "genome_architecture_metrics.csv")
-calculate_architecture(gff_dir, arch_output_file)
+pair_output_file = joinpath(output_dir, "overlapping_pairs.csv")
+
+calculate_architecture(
+    gff_dir,
+    arch_output_file,
+    extract_pairs = true, 
+    pairs_output_file = pair_output_file
+)
 
 consolidate_to_genomes(
     arch_output_file,
@@ -496,3 +503,52 @@ println("Saved plot to 'overlap_lengths.png'")
 println(names(df_s))
 
 df_s.known_lifestyle_tier
+
+using CSV
+using DataFrames
+df = CSV.File(raw"D:\pipeline_output\overlapping_pairs_annotated.csv") |> DataFrame
+
+# 2. Filter for opposite-strand overlaps (Convergent or Divergent)
+opp_strand_df = filter(row -> row.overlap_type in ["Convergent", "Divergent"], df)
+names(df)
+
+for i in 10:10:200
+    s_df = filter(
+        :overlap_length => (x) -> x >= i,
+        opp_strand_df
+    )
+    println("=== Overlaps >= $i bp, Total unique genomes: ", length(unique(s_df.genome)))
+end
+
+s_df = filter(
+    :overlap_length => (x) -> x > 120,
+    opp_strand_df
+)
+
+
+unique(s_df.genome) 
+
+# 3. Map the raw modulo phase to the Kirsch et al. reading frames
+frame_mapping = Dict(0 => "0", 1 => "-1", 2 => "-2")
+opp_strand_df.reading_frame = [frame_mapping[p] for p in opp_strand_df.phase]
+
+using Statistics
+# 4. Generate the summary table
+phase_summary = combine(groupby(opp_strand_df, :reading_frame),
+    nrow => :total_pairs,
+    :overlap_length => mean => :mean_length,
+    :overlap_length => median => :median_length,
+    :overlap_length => maximum => :max_length,
+    # Crucial for Phase 2: How many overlaps are actually usable for 3D physics?
+    :overlap_length => (x -> count(>=(50), x)) => :usable_targets_over_50bp
+)
+
+# Sort logically (0, -1, -2)
+sort!(
+    phase_summary,
+    :reading_frame,
+    rev = true
+)
+
+# Display the beautiful result!
+println(phase_summary)

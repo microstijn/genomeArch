@@ -6,7 +6,7 @@ using DataFrames
 using Statistics
 using GLM
 using StatsModels
-using Optim
+#using Optim
 using CategoricalArrays
 
 export merge_and_impute_ogt
@@ -14,7 +14,148 @@ export merge_and_impute_lifestyle
 export optimize_models
 export mechanistic_engine
 export mechanistic_engine_all
+export impute_by_taxonomy
 
+"""
+    get_mode(arr)
+
+Returns the most frequent element in an array. Perfect for categorical consensus.
+"""
+function get_mode(arr)
+    counts = Dict{eltype(arr), Int}()
+    for v in arr
+        counts[v] = get(counts, v, 0) + 1
+    end
+    best_v = -1
+    best_k = first(arr)
+    for (k, v) in counts
+        if v > best_v
+            best_v = v
+            best_k = k
+        end
+    end
+    return best_k
+end
+
+"""
+    impute_by_taxonomy(df::DataFrame, target_col::Symbol, tax_col::Symbol, db::Taxonomy.DB; 
+                       prefix::String=string(target_col), agg_func::Function)
+
+Generic function to impute missing values in any column using strict NCBI TaxID 
+graph traversal. It traverses the taxonomic lineage to find the closest clade 
+consensus for the missing trait.
+
+# Arguments
+- `df::DataFrame`: The dataset containing the empirical data and missing values.
+- `target_col::Symbol`: The column to impute (e.g., `:motility`, `:doubling_h`).
+- `tax_col::Symbol`: The column containing the NCBI TaxIDs.
+- `db::Taxonomy.DB`: The loaded NCBI Taxonomy database.
+- `prefix::String`: Prefix for the output tracking columns. Defaults to the target column name.
+- `agg_func::Function`: The function used to calculate the clade consensus. Defaults to `get_mode` for categorical data. Use `median` or `mean` for numerical data.
+"""
+function impute_by_taxonomy(df::DataFrame, target_col::Symbol, tax_col::Symbol, db::Taxonomy.DB; 
+                            prefix::String=string(target_col), agg_func::Function=get_mode)
+    
+    T = nonmissingtype(eltype(df[!, target_col]))
+    clade_traits = Dict{Int, Vector{T}}()
+    valid_known = T[]
+    
+    # --- 1. Map Known Traits ---
+    for row in eachrow(df)
+        val = row[target_col]
+        tax_id = row[tax_col]
+        
+        if !ismissing(val) && !ismissing(tax_id)
+            push!(valid_known, val)
+            try
+                # THE FIX: Parse the String back to an Int for the Taxonomy DB
+                tax_int = parse(Int, string(tax_id))
+                tax = Taxon(tax_int, db)
+                lin = Lineage(tax)
+                for rank in [:species, :genus, :family, :order, :class, :phylum, :superkingdom]
+                    try
+                        node_str = string(lin[rank])
+                        m = match(r"^(\d+)", node_str)
+                        if m !== nothing
+                            rank_id = parse(Int, m.captures[1])
+                            if !haskey(clade_traits, rank_id)
+                                clade_traits[rank_id] = T[]
+                            end
+                            push!(clade_traits[rank_id], val)
+                        end
+                    catch
+                    end
+                end
+            catch
+            end
+        end
+    end
+    
+    # --- 2. Calculate Consensus ---
+    clade_consensus = Dict{Int, T}()
+    for (t_id, vals) in clade_traits
+        clade_consensus[t_id] = agg_func(vals)
+    end
+    global_consensus = agg_func(valid_known)
+    
+    # --- 3. Traverse and Impute ---
+    imputed_vals = T[]
+    imp_level = String[]
+    imp_dist = Int[]
+    ranks_to_check = [:species, :genus, :family, :order, :class, :phylum, :superkingdom]
+    
+    for row in eachrow(df)
+        val = row[target_col]
+        tax_id = row[tax_col]
+        
+        if !ismissing(val)
+            push!(imputed_vals, val); push!(imp_level, "direct"); push!(imp_dist, 0); continue
+        end
+        if ismissing(tax_id)
+            push!(imputed_vals, global_consensus); push!(imp_level, "global"); push!(imp_dist, 7); continue
+        end
+        
+        found_val = missing
+        lvl_name = "global"
+        dist_score = 7
+        
+        try
+            # THE FIX: Parse the String back to an Int for the Taxonomy DB
+            tax_int = parse(Int, string(tax_id))
+            tax = Taxon(tax_int, db)
+            lin = Lineage(tax)
+            for (i, rank) in enumerate(ranks_to_check)
+                try
+                    node_str = string(lin[rank])
+                    m = match(r"^(\d+)", node_str)
+                    if m !== nothing
+                        rank_id = parse(Int, m.captures[1])
+                        if haskey(clade_consensus, rank_id)
+                            found_val = clade_consensus[rank_id]
+                            lvl_name = string(rank)
+                            dist_score = i
+                            break
+                        end
+                    end
+                catch
+                end
+            end
+        catch
+        end
+        
+        if ismissing(found_val)
+            push!(imputed_vals, global_consensus); push!(imp_level, "global"); push!(imp_dist, 7)
+        else
+            push!(imputed_vals, found_val); push!(imp_level, lvl_name); push!(imp_dist, dist_score)
+        end
+    end
+    
+    df_out = copy(df)
+    df_out[!, Symbol(prefix, "_imputed")] = imputed_vals
+    df_out[!, Symbol(prefix, "_imputation_level")] = imp_level
+    df_out[!, Symbol(prefix, "_imputation_distance")] = imp_dist
+    return df_out
+end
 
 # Phase 0: OGT Database Integration & Taxonomic Imputation
 """

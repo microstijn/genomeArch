@@ -48,6 +48,31 @@ function count_overlaps(length_array::AbstractArray{T}) where T<:Int
     return total_nr, sum_len, max_len, coupled_nr, deep_nr, in_frame_nr, out_of_frame_nr, abutting_nr
 end
 
+function calculate_strand_coding_bases(genes::Vector{GFF3.Record})
+    # NOTE: Assumes `genes` is already sorted by seqstart
+    if isempty(genes) return 0 end
+    
+    current_start = GFF3.seqstart(genes[1])
+    current_end = GFF3.seqend(genes[1])
+    total_bases = 0
+    
+    for i in 2:length(genes)
+        g_start = GFF3.seqstart(genes[i])
+        g_end = GFF3.seqend(genes[i])
+        
+        if g_start <= current_end
+            current_end = max(current_end, g_end)
+        else
+            total_bases += (current_end - current_start + 1)
+            current_start = g_start
+            current_end = g_end
+        end
+    end
+    total_bases += (current_end - current_start + 1)
+    
+    return total_bases
+end
+
 function calculate_absolute_gaps(genes::Vector{GFF3.Record})
     # NOTE: Assumes `genes` is already sorted by seqstart
     if isempty(genes)
@@ -224,6 +249,85 @@ function bidirectional_overlaps(set1, set2)
 
     return len_con, len_di, sum_vect_con, sum_vect_di, max_con, max_di, deep_con, deep_di
 end
+
+function get_gene_id(record::GFF3.Record)
+    attrs = GFF3.attributes(record)
+    for key in ["ID", "Name", "locus_tag"]
+        for pair in attrs
+            if pair.first == key
+                return pair.second[1] # GFF3 attributes are returned as vectors of strings
+            end
+        end
+    end
+    # Fallback if no standard ID exists
+    return "gene_at_$(GFF3.seqstart(record))"
+end
+
+function extract_overlapping_pairs(genes::Vector{GFF3.Record}, genome_id::String, contig_id::String)
+    # Initialize a DataFrame to hold the pairs for this contig
+    results = DataFrame(
+        genome = String[], 
+        contig = String[], 
+        gene_A = String[], 
+        gene_B = String[],
+        strand_A = String[], # <-- Changed to String
+        strand_B = String[], # <-- Changed to String
+        overlap_type = String[], 
+        overlap_length = Int[], 
+        phase = Int[]
+    )
+
+    n = length(genes)
+    if n < 2 return results end
+
+    for i in 1:n
+        g1 = genes[i]
+        s1, e1 = GFF3.seqstart(g1), GFF3.seqend(g1)
+        str1 = GFF3.strand(g1)
+
+        # Look ahead to find overlaps
+        for j in (i+1):n
+            g2 = genes[j]
+            s2, e2 = GFF3.seqstart(g2), GFF3.seqend(g2)
+            str2 = GFF3.strand(g2)
+
+            if s2 <= e1 # We have an overlap!
+                o_start = max(s1, s2)
+                o_end = min(e1, e2)
+                o_length = o_end - o_start + 1
+                
+                # Filter out abutting genes (0 overlap) if you only want true overlaps
+                if o_length > 0 
+                    # Determine architectural type based on start-sorting
+                    if str1 == str2
+                        otype = "Unidirectional"
+                    elseif str1 == STRAND_POS && str2 == STRAND_NEG
+                        otype = "Convergent"
+                    else
+                        otype = "Divergent"
+                    end
+
+                    push!(results, (
+                        genome_id, 
+                        contig_id, 
+                        get_gene_id(g1), 
+                        get_gene_id(g2),
+                        string(str1), # <-- Changed to string()
+                        string(str2), # <-- Changed to string()
+                        otype, 
+                        o_length, 
+                        o_length % 3
+                    ))
+                end
+            else
+                break # Because the array is sorted, no subsequent genes will overlap g1
+            end
+        end
+    end
+    
+    return results
+end
+
 
 
 #-----------------------------------------------------------------
@@ -406,7 +510,10 @@ end
 #-----------------------------------------------------------------
 # Main Exported Function
 #-----------------------------------------------------------------
-function calculate_architecture(gff_dir::String, output_file::String)
+function calculate_architecture(gff_dir::String, output_file::String; 
+                                extract_pairs::Bool=false, 
+                                pairs_output_file::String="overlapping_pairs.csv")
+
     if !isdir(gff_dir)
         @error "Input directory not found: $gff_dir"
         return
@@ -421,6 +528,7 @@ function calculate_architecture(gff_dir::String, output_file::String)
     println("Found $n_files GFF files. Starting analysis on $(nthreads()) threads...")
 
     thread_results = [DataFrame() for _ in 1:nthreads()]
+    thread_pairs_results = [DataFrame() for _ in 1:nthreads()]
     p = Progress(n_files, "Processing GFF files...")
 
     @threads for file_path in file_paths
@@ -449,6 +557,15 @@ function calculate_architecture(gff_dir::String, output_file::String)
                 genes = get(contig_features, contig_id, GFF3.Record[])
                 all_genes_sorted = sort(genes, by=GFF3.seqstart)
                 num_genes = length(all_genes_sorted)
+
+                if extract_pairs && num_genes > 1
+                    contig_pairs = extract_overlapping_pairs(all_genes_sorted, genome_name, contig_id)
+                    if nrow(contig_pairs) > 0
+                        # CHANGE 'push!' to 'append!'
+                        append!(thread_pairs_results[thread_id], contig_pairs) 
+                    end
+                end
+ 
 
                 if num_genes > 0
                     all_gene_lengths = length_interval(GFF3.seqstart.(all_genes_sorted), GFF3.seqend.(all_genes_sorted))
@@ -482,7 +599,15 @@ function calculate_architecture(gff_dir::String, output_file::String)
                 n_gaps = space_between(n_starts, n_ends)
                 n_gene_nr = length(n_genes)
                 n_gene_length_sum = isempty(n_genes) ? 0 : sum(length_interval(n_starts, n_ends))
+                
+                # Calculate non-redundant bases used per strand
+                p_bases_used = calculate_strand_coding_bases(p_genes)
+                n_bases_used = calculate_strand_coding_bases(n_genes)
+                            
+                # Calculate Base Usage Percentage (Total bases = 2 * contig_size)
+                base_usage_pct = ((p_bases_used + n_bases_used) / (2 * contig_size)) * 100.0
 
+                # p and n overlaps
                 p_U_overlap_nr, p_U_overlap_length_sum, p_U_max_len, p_U_coupled_nr, p_U_deep_nr, p_U_in_frame, p_U_out_frame, p_abutting = isempty(p_gaps) ? (0, 0, 0, 0, 0, 0, 0, 0) : count_overlaps(p_gaps)
                 n_U_overlap_nr, n_U_overlap_length_sum, n_U_max_len, n_U_coupled_nr, n_U_deep_nr, n_U_in_frame, n_U_out_frame, n_abutting = isempty(n_gaps) ? (0, 0, 0, 0, 0, 0, 0, 0) : count_overlaps(n_gaps)
                 
@@ -548,6 +673,7 @@ function calculate_architecture(gff_dir::String, output_file::String)
                     mean_gene_length = mean_gene_length,
                     std_gene_length = std_gene_length,
                     coding_density_pct = coding_density_pct,
+                    base_usage_pct = base_usage_pct,
                     nested_genes_nr = nested_genes_nr,
                     
                     mean_overlap_chain_size = overlap_chains.mean_chain_size,
@@ -580,6 +706,17 @@ function calculate_architecture(gff_dir::String, output_file::String)
         CSV.write(output_file, final_dataframe)
     catch e
         @error "Failed to write CSV file at $output_file." exception=(e, catch_backtrace())
+    end
+
+    if extract_pairs
+        println("Consolidating overlapping pairs...")
+        final_pairs_df = vcat(thread_pairs_results...)
+        if nrow(final_pairs_df) > 0
+            CSV.write(pairs_output_file, final_pairs_df)
+            println("Successfully wrote $(nrow(final_pairs_df)) overlapping pairs to: $pairs_output_file")
+        else
+            @warn "No overlapping pairs found across any genomes."
+        end
     end
 
     println("Architecture calculation complete.")

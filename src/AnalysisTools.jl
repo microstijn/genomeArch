@@ -197,6 +197,9 @@ function consolidate_to_genomes(input_file::String, output_file::String)
             # True global coding density across the whole genome
             coding_density_pct = total_size > 0 ? sum(sub_df.coding_density_pct .* sub_df.contig_size) / total_size : 0.0,
             
+            # Base usage percentage (Traditional 2D coding bases vs contig size)
+            base_usage_pct = total_size > 0 ? sum(sub_df.base_usage_pct .* sub_df.contig_size) / total_size : 0.0,
+
             # Global mean gene length
             mean_gene_length = total_genes > 0 ? (sums.p_gene_length_sum + sums.n_gene_length_sum) / total_genes : 0.0,
             
