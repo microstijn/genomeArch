@@ -1,3 +1,10 @@
+
+# Setup Environment 
+using Pkg
+# Activates the project environment in the current directory (where Project.toml is)
+project_dir = joinpath(@__DIR__, "..")
+Pkg.activate(project_dir)
+
 using CSV
 using DataFrames
 using CairoMakie
@@ -9,6 +16,9 @@ println("Initializing algorithmic bias analysis script...")
 # ==========================================================================
 println("Loading data...")
 df = CSV.File(raw"D:\pipeline_output\overlapping_pairs_annotated.csv") |> DataFrame
+dfs = CSV.read(raw"D:\pipeline_output\merged_imputed_ogt.csv", DataFrame)
+
+
 
 # Filter for opposite-strand overlaps (Convergent or Divergent)
 opp_strand_df = filter(row -> row.overlap_type in ["Convergent", "Divergent"], df)
@@ -23,7 +33,7 @@ countss = Int[]
 densities = Float64[]
 
 println("Calculating lengths and overlaps per genome...")
-for i in 10:1:200
+for i in 1:1:200
     s_df = filter(:overlap_length => >=(i), opp_strand_df)
     pairs = nrow(s_df)
     
@@ -47,7 +57,7 @@ println("Generating CairoMakie plot...")
 
 set_theme!(theme_minimal(), font="Helvetica")
 
-fig = Figure(size = (850, 800))
+fig = Figure(size = (400, 400))
 
 # --- PANEL 1: Total Overlapping Pairs (Top) ---
 ax1 = Axis(fig[1, 1],
@@ -66,10 +76,6 @@ vlines!(ax1, [120], color = :crimson, linestyle = :dash, linewidth = 2.5)
 lines!(ax1, lengths, countss, color = :midnightblue, linewidth = 3.0)
 scatter!(ax1, lengths, countss, color = :dodgerblue, markersize = 6)
 
-text!(ax1, 123, 5000, 
-      text = "PGAP/HMM Penalty\nForces Deletion", 
-      color = :crimson, align = (:left, :center), fontsize = 14, font = "Helvetica Bold")
-
 ylims!(ax1, 10, 1_000_000)
 
 # --- PANEL 2: Density / Overlaps per Genome (Bottom) ---
@@ -87,10 +93,6 @@ vlines!(ax2, [120], color = :crimson, linestyle = :dash, linewidth = 2.5)
 # Plot density on a linear scale
 lines!(ax2, lengths, densities, color = :darkorange, linewidth = 3.0)
 scatter!(ax2, lengths, densities, color = :orange, markersize = 6)
-
-text!(ax2, 123, 10, 
-      text = "Density Spike in\nCurated Genomes", 
-      color = :crimson, align = (:left, :center), fontsize = 14, font = "Helvetica Bold")
 
 # Dynamic Y-limits based on the max density to ensure it fits cleanly
 ylims!(ax2, 0, maximum(densities) * 1.2)

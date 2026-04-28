@@ -8,7 +8,7 @@ using Loess
 # ==============================================================================
 println("Loading dataset...")
 df = CSV.read(raw"D:\pipeline_output\merged_imputed_ogt.csv", DataFrame)
-
+println(names(df))
 df.total_genes = df.p_gene_nr .+ df.n_gene_nr
 # Calculate genome size in Megabases for cleaner X-axes
 df.genome_size_mb = df.genome_size ./ 1_000_000.0
